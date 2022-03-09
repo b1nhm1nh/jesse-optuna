@@ -97,15 +97,15 @@ def run(config : str) -> None:
     #         print("Exiting.")
     #         exit(1)
     try:
-        study = optuna.create_study(study_name=study_name, direction="maximize", sampler=sampler,
+        study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
                                             storage=storage, load_if_exists=False)
     except optuna.exceptions.DuplicatedStudyError:
         if click.confirm('Previous study detected. Do you want to resume?', default=True):
-            study = optuna.create_study(study_name=study_name, direction="maximize", sampler=sampler,
+            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
                                             storage=storage, load_if_exists=True)
         elif click.confirm('Delete previous study and start new?', default=False):
             optuna.delete_study(study_name=study_name, storage=storage)
-            study = optuna.create_study(study_name=study_name, direction="maximize", sampler=sampler,
+            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
                                             storage=storage, load_if_exists=False)
         else:
             print("Exiting.")
