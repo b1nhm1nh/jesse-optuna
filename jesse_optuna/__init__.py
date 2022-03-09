@@ -82,6 +82,7 @@ def run(config : str) -> None:
     optuna.logging.enable_propagation()
     # optuna.logging.disable_default_handler()
 
+    # JOBlibStudy for Jesse GUI
     # try:
     #     study = JoblibStudy(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
     #                                 storage=storage, load_if_exists=False)
@@ -96,6 +97,7 @@ def run(config : str) -> None:
     #     else:
     #         print("Exiting.")
     #         exit(1)
+    # Using Jesse-tk directly
     try:
         study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
                                             storage=storage, load_if_exists=False)
@@ -115,8 +117,11 @@ def run(config : str) -> None:
     study.set_user_attr("symbol", cfg['symbol'])
     study.set_user_attr("timeframe", cfg['timeframe'])
 
+    current_trials = len(study.trials)
 
-    study.optimize(objective, n_jobs=cfg['n_jobs'], n_trials=cfg['n_trials'])
+    left_trials = max(cfg['n_trials'] - current_trials, 1)
+    print(f"Optimizing {study_name} with {left_trials} / {cfg['n_trials']} trials...")
+    study.optimize(objective, n_jobs=cfg['n_jobs'], n_trials=left_trials)
 
     print_best_params(study)
     save_best_params(study, study_name)
