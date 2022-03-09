@@ -1,6 +1,6 @@
-# Jesse optuna
+# Jesse optuna for Jesse-CLI using Jesse-tk
 
-Only works with the dashboard version / branch of jesse.
+Only works with the CLI version / branch of jesse.
 
 The config.yml should be self-explainatory.
 
@@ -21,7 +21,7 @@ jesse-optuna create-db optuna_db
 # edit the created yml file in your project directory 
 
 # run
-jesse-optuna run
+jesse-optuna run --config optuna-config.yml
 
 ```
 
