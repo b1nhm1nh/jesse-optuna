@@ -169,7 +169,7 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
         print (f"Walk {i_start_date.format('YYYY-MM-DD')} - {i_outsample_date.format('YYYY-MM-DD')}- {i_finish_date.format('YYYY-MM-DD')} ")
         try:
             study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                                storage=storage, load_if_exists=False)
+                                                storage=storage, load_if_exists=False if passno == 1 else True)
         except optuna.exceptions.DuplicatedStudyError:
             if click.confirm('Previous study detected. Do you want to resume?', default=True):
                 study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
