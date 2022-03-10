@@ -145,7 +145,6 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
     validate_cwd()
     cfg = get_config()
 
-    config_filename = 'optuna_config.yml'
     optuna.logging.enable_propagation()
 
     study_name = f"Walkforward-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}"
