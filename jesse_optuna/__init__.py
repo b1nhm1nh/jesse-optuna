@@ -189,13 +189,14 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
 
         current_trials = len(study.trials)
 
-        left_trials = max(cfg['n_trials'] - current_trials, 1)
+        left_trials = max((cfg['n_trials'] * passno - current_trials) % cfg['n_trials'], 1)
+
         print(f"Optimizing {study_name} with {left_trials} / {cfg['n_trials']} trials...")
         cfg['timespan-train']['start_date'] = i_start_date.format('YYYY-MM-DD')
         cfg['timespan-train']['finish_date'] = i_outsample_date.format('YYYY-MM-DD')
         cfg['timespan-testing']['start_date'] = i_outsample_date.format('YYYY-MM-DD')
         cfg['timespan-testing']['finish_date'] = i_finish_date.format('YYYY-MM-DD')
-        study.optimize(objective, n_jobs=cfg['n_jobs'] * passno, n_trials=left_trials)
+        study.optimize(objective, n_jobs=cfg['n_jobs'], n_trials=left_trials)
 
         print_best_params(study)
         save_best_params(study, study_name + f"-{passno}")
