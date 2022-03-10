@@ -374,6 +374,7 @@ def validate_cwd() -> None:
     if not is_jesse_project:
         print('Current directory is not a Jesse project. You must run commands from the root of a Jesse project.')
         exit()
+    os.makedirs(f'./optuna', exist_ok=True)
 
 
 def get_candles_with_cache(exchange: str, symbol: str, start_date: str, finish_date: str) -> np.ndarray:
