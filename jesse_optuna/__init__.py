@@ -167,24 +167,25 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
                 break
         
         print (f"Walk {i_start_date.format('YYYY-MM-DD')} - {i_outsample_date.format('YYYY-MM-DD')}- {i_finish_date.format('YYYY-MM-DD')} ")
-        try:
-            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                                storage=storage, load_if_exists=False if passno == 1 else True)
-        except optuna.exceptions.DuplicatedStudyError:
-            if click.confirm('Previous study detected. Do you want to resume?', default=True):
+        if passno == 1:
+            try:
                 study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                                storage=storage, load_if_exists=True)
-            elif click.confirm('Delete previous study and start new?', default=False):
-                optuna.delete_study(study_name=study_name, storage=storage)
-                study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                                storage=storage, load_if_exists=False)
-            else:
-                print("Exiting.")
-                exit(1)
-        study.set_user_attr("strategy_name", cfg['strategy_name'])
-        study.set_user_attr("exchange", cfg['exchange'])
-        study.set_user_attr("symbol", cfg['symbol'])
-        study.set_user_attr("timeframe", cfg['timeframe'])
+                                                    storage=storage, load_if_exists=False if passno == 1 else True)
+            except optuna.exceptions.DuplicatedStudyError:
+                if click.confirm('Previous study detected. Do you want to resume?', default=True):
+                    study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                                                    storage=storage, load_if_exists=True)
+                elif click.confirm('Delete previous study and start new?', default=False):
+                    optuna.delete_study(study_name=study_name, storage=storage)
+                    study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                                                    storage=storage, load_if_exists=False)
+                else:
+                    print("Exiting.")
+                    exit(1)
+            study.set_user_attr("strategy_name", cfg['strategy_name'])
+            study.set_user_attr("exchange", cfg['exchange'])
+            study.set_user_attr("symbol", cfg['symbol'])
+            study.set_user_attr("timeframe", cfg['timeframe'])
 
         current_trials = len(study.trials)
 
