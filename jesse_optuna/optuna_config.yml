@@ -17,20 +17,48 @@ strategy_name: 'Test'
 
 starting_balance: 5000
 fee: 0.001
-futures_leverage: 1
+futures_leverage: 10
 futures_leverage_mode: cross
 settlement_currency: USDT
-warm_up_candles: 240
-exchange: Binance
+warm_up_candles: 400
+exchange: Binance Futures
 symbol: 'BTC-USDT'
 timeframe: '1h'
 
+testing_passes: 10
+
 timespan-train:
   start_date: '2020-01-01'
-  finish_date: '2021-01-01'
-timespan-testing:
-  start_date: '2021-01-01'
-  finish_date: '2021-11-01'
+  finish_date: '2020-06-01'
+timespan-testing-1:
+  start_date: '2021-12-01'
+  finish_date: '2022-03-01'
+timespan-testing-2:
+  start_date: '2020-01-01'
+  finish_date: '2020-06-01'
+timespan-testing-3:
+  start_date: '2020-03-01'
+  finish_date: '2020-09-01'
+timespan-testing-4:
+  start_date: '2020-06-01'
+  finish_date: '2020-12-01'
+timespan-testing-5:
+  start_date: '2020-09-01'
+  finish_date: '2021-03-01'
+timespan-testing-6:
+  start_date: '2020-12-01'
+  finish_date: '2021-06-01'
+timespan-testing-7:
+  start_date: '2021-03-01'
+  finish_date: '2021-09-01'
+timespan-testing-8:
+  start_date: '2021-06-01'
+  finish_date: '2021-12-01'
+timespan-testing-9:
+  start_date: '2021-09-01'
+  finish_date: '2022-03-01'
+
+
 
 extra_routes:
   0:
