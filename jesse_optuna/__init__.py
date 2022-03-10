@@ -20,9 +20,7 @@ from subprocess import PIPE, Popen, call
 
 from jessetk.utils import make_route, get_metrics3
 logger = logging.getLogger()
-logger.addHandler(logging.FileHandler("jesse-optuna.log", mode="w"))
-config_filename = 'optuna_config.yml'
-optuna.logging.enable_propagation()
+study_name = ""
 
 # create a Click group
 @click.group()
@@ -67,13 +65,17 @@ def create_db(db_name: str) -> None:
     '--config', default='optuna_config.yml', show_default=True,
     help='Config file')
 def run(config : str) -> None:
-    global config_filename
+    global config_filename, logger, study_name
+
     config_filename = config
     validate_cwd()
-
     cfg = get_config()
-    study_name = f"{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}"
+    study_name = f"Optimize-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}"
     storage = f"postgresql://{cfg['postgres_username']}:{cfg['postgres_password']}@{cfg['postgres_host']}:{cfg['postgres_port']}/{cfg['postgres_db_name']}"
+
+    logger.addHandler(logging.FileHandler(f"optuna/{study_name}.log", mode="w"))
+    config_filename = 'optuna_config.yml'
+    optuna.logging.enable_propagation()
 
     make_route("route_tpl.py", "routes.py", cfg['exchange'], cfg['symbol'], cfg['timeframe'], cfg['strategy_name'])
 
@@ -137,12 +139,16 @@ def run(config : str) -> None:
     '--config', default='optuna_config.yml', show_default=True,
     help='Config file')
 def walkforward(start_date: str, finish_date: str, inc_month : int,training_month: int, test_month: int,config : str) -> None:
-    global config_filename
+    global config_filename, logger
+
     config_filename = config
     validate_cwd()
-
     cfg = get_config()
-    study_name = f"Walkforward-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}"
+
+    config_filename = 'optuna_config.yml'
+    optuna.logging.enable_propagation()
+
+    study_name = f"Walkforward-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}"
     storage = f"postgresql://{cfg['postgres_username']}:{cfg['postgres_password']}@{cfg['postgres_host']}:{cfg['postgres_port']}/{cfg['postgres_db_name']}"
 
     make_route("route_tpl.py", "routes.py", cfg['exchange'], cfg['symbol'], cfg['timeframe'], cfg['strategy_name'])
@@ -150,6 +156,7 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
     sampler = optuna.samplers.NSGAIISampler(population_size=cfg['population_size'], mutation_prob=cfg['mutation_prob'],
                                             crossover_prob=cfg['crossover_prob'], swapping_prob=cfg['swapping_prob'])
     
+    logger.addHandler(logging.FileHandler(f"optuna/{study_name}.log", mode="w"))
     optuna.logging.enable_propagation()
 
     print (f" Walkforward period: {start_date.format('YYYY-MM-DD')} - {finish_date.format('YYYY-MM-DD')}")
@@ -446,7 +453,7 @@ def print_best_params(study):
 
 
 def save_best_params(study, study_name: str):
-    with open("results.txt", "a") as f:
+    with open(f"optuna/{study_name}-results.txt", "a") as f:
         f.write(f"{study_name} Number of finished trials: {len(study.trials)}\n")
 
         trials = sorted(study.best_trials, key=lambda t: t.values)
