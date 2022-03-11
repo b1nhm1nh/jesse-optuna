@@ -147,7 +147,7 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
 
     optuna.logging.enable_propagation()
 
-    study_name = f"Walkforward-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}"
+    study_name = f"Walkforward-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}-{inc_month}-{training_month}-{test_month}"
     storage = f"postgresql://{cfg['postgres_username']}:{cfg['postgres_password']}@{cfg['postgres_host']}:{cfg['postgres_port']}/{cfg['postgres_db_name']}"
 
     make_route("route_tpl.py", "routes.py", cfg['exchange'], cfg['symbol'], cfg['timeframe'], cfg['strategy_name'])
