@@ -244,7 +244,7 @@ def objective(trial):
             if 'step' not in st_hp:
                 st_hp['step'] = 0.1
             trial.suggest_float(st_hp['name'], st_hp['min'], st_hp['max'], step=st_hp['step'])
-            trial.param[st_hp['name']] = round(trial.param[st_hp['name']], len(str(st_hp['step'] - 2)))
+            trial.params[st_hp['name']] = round(trial.params[st_hp['name']], len(str(st_hp['step'] - 2)))
         elif st_hp['type'] is bool:
             trial.suggest_categorical(st_hp['name'], [True, False])
         else:
