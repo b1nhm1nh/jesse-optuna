@@ -27,50 +27,23 @@ timeframe: '1h'
 revision: 'v2'
 
 
-testing_passes: 10
 
 timespan-train:
   start_date: '2020-01-01'
-  finish_date: '2020-06-01'
-timespan-testing-1:
+  finish_date: '2022-01-01'
+timespan-testing:
   start_date: '2021-12-01'
   finish_date: '2022-03-01'
-timespan-testing-2:
-  start_date: '2020-01-01'
-  finish_date: '2020-06-01'
-timespan-testing-3:
-  start_date: '2020-03-01'
-  finish_date: '2020-09-01'
-timespan-testing-4:
-  start_date: '2020-06-01'
-  finish_date: '2020-12-01'
-timespan-testing-5:
-  start_date: '2020-09-01'
-  finish_date: '2021-03-01'
-timespan-testing-6:
-  start_date: '2020-12-01'
-  finish_date: '2021-06-01'
-timespan-testing-7:
-  start_date: '2021-03-01'
-  finish_date: '2021-09-01'
-timespan-testing-8:
-  start_date: '2021-06-01'
-  finish_date: '2021-12-01'
-timespan-testing-9:
-  start_date: '2021-09-01'
-  finish_date: '2022-03-01'
-
-
 
 extra_routes:
-  0:
-    exchange: 'Binance'
-    symbol: 'BTC-USDT'
-    timeframe: '1D'
-  1:
-    exchange: 'Binance'
-    symbol: 'BNB-USDT'
-    timeframe: '1D'
+  # 0:
+  #   exchange: 'Binance'
+  #   symbol: 'BTC-USDT'
+  #   timeframe: '1D'
+  # 1:
+  #   exchange: 'Binance'
+  #   symbol: 'BNB-USDT'
+  #   timeframe: '1D'
 
 postgres_host: 'postgres'
 postgres_db_name: 'optuna_db'
