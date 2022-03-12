@@ -12,6 +12,7 @@ import optuna
 import pkg_resources
 import yaml
 import arrow
+import math
 # from jesse.research import backtest, get_candles
 from .JoblilbStudy import JoblibStudy
 
@@ -160,12 +161,38 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
 
     print (f" Walkforward period: {start_date.format('YYYY-MM-DD')} - {finish_date.format('YYYY-MM-DD')}")
 
+    passno = 1
+
+    try:
+        study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                                            storage=storage, load_if_exists=False if passno == 1 else True)
+    except optuna.exceptions.DuplicatedStudyError:
+        if click.confirm('Previous study detected. Do you want to resume?', default=True):
+            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                                            storage=storage, load_if_exists=True)
+        elif click.confirm('Delete previous study and start new?', default=False):
+            optuna.delete_study(study_name=study_name, storage=storage)
+            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                                            storage=storage, load_if_exists=False)
+        else:
+            print("Exiting.")
+            exit(1)
+    study.set_user_attr("strategy_name", cfg['strategy_name'])
+    study.set_user_attr("exchange", cfg['exchange'])
+    study.set_user_attr("symbol", cfg['symbol'])
+    study.set_user_attr("timeframe", cfg['timeframe'])
+
     a_start_date = arrow.get(start_date, 'YYYY-MM-DD')
     a_finish_date = arrow.get(finish_date, 'YYYY-MM-DD')
-    i_start_date = a_start_date
-    i_outsample_date = a_start_date.shift(months=training_month)
+
+    bypass_month = inc_month * math.floor(len(study.trials) / cfg['n_trials'])
+    i_start_date = a_start_date.shift(months=bypass_month) 
+    i_outsample_date = i_start_date.shift(months=training_month)
     i_finish_date = i_start_date.shift(months = test_month)
-    passno = 1
+
+    print(f" Bypassing {bypass_month} months.{i_start_date} {a_finish_date}")
+
+ 
     while  i_start_date <= a_finish_date:
         if i_finish_date > a_finish_date:
             i_finish_date = a_finish_date
@@ -173,25 +200,6 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
                 break
         
         print (f"Walk {i_start_date.format('YYYY-MM-DD')} - {i_outsample_date.format('YYYY-MM-DD')}- {i_finish_date.format('YYYY-MM-DD')} ")
-        if passno == 1:
-            try:
-                study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                                    storage=storage, load_if_exists=False if passno == 1 else True)
-            except optuna.exceptions.DuplicatedStudyError:
-                if click.confirm('Previous study detected. Do you want to resume?', default=True):
-                    study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                                    storage=storage, load_if_exists=True)
-                elif click.confirm('Delete previous study and start new?', default=False):
-                    optuna.delete_study(study_name=study_name, storage=storage)
-                    study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                                    storage=storage, load_if_exists=False)
-                else:
-                    print("Exiting.")
-                    exit(1)
-            study.set_user_attr("strategy_name", cfg['strategy_name'])
-            study.set_user_attr("exchange", cfg['exchange'])
-            study.set_user_attr("symbol", cfg['symbol'])
-            study.set_user_attr("timeframe", cfg['timeframe'])
 
         current_trials = len(study.trials)
 
@@ -212,6 +220,48 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
         i_finish_date = i_start_date.shift(months = test_month)
         passno += 1
 
+    # save_best_params(study, study_name + f"-{passno}")
+    # Write all the params to file
+    with open(f"optuna/{study_name}-last-pass-hps.txt", "w+") as f:
+        # f.write(f"# {study_name} Number of finished trials: {len(study.trials)}\n")
+        for i in range(1,cfg['n_trials']):
+            params = json.dumps(study.trials[-i].params).replace('000000000000004','').replace('000000000000001','').replace('000000000000002','').replace('00000000000001','')
+            f.write(params + "\n")
+
+        f.close()
+
+# @cli.command()
+# @click.argument('start_date', required=True, type=str)
+# @click.argument('finish_date', required=True, type=str)
+# @click.argument('inc_month', required=True, type=int)
+# @click.argument('training_month', required=True, type=int)
+# @click.argument('test_month', required=True, type=int)
+# @click.option(
+#     '--config', default='optuna_config.yml', show_default=True,
+#     help='Config file')
+# def walkforward_refine(start_date: str, finish_date: str, inc_month : int,training_month: int, test_month: int,config : str) -> None:
+#     global config_filename, logger
+
+#     config_filename = config
+#     validate_cwd()
+#     cfg = get_config()
+
+#     optuna.logging.enable_propagation()
+
+#     study_name = f"Walkforward-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}-{inc_month}-{training_month}-{test_month}"
+#     storage = f"postgresql://{cfg['postgres_username']}:{cfg['postgres_password']}@{cfg['postgres_host']}:{cfg['postgres_port']}/{cfg['postgres_db_name']}"
+
+#     make_route("route_tpl.py", "routes.py", cfg['exchange'], cfg['symbol'], cfg['timeframe'], cfg['strategy_name'])
+
+#     sampler = optuna.samplers.NSGAIISampler(population_size=cfg['population_size'], mutation_prob=cfg['mutation_prob'],
+#                                             crossover_prob=cfg['crossover_prob'], swapping_prob=cfg['swapping_prob'])
+    
+#     logger.addHandler(logging.FileHandler(f"optuna/{study_name}.log", mode="w"))
+#     optuna.logging.enable_propagation()
+
+#     print (f" Walkforward period: {start_date.format('YYYY-MM-DD')} - {finish_date.format('YYYY-MM-DD')}")
+
+#     optuna.copy_study(from_study_name, from_storage, to_storage, to_study_name=None)
 
 def get_config():
     global config_filename
@@ -455,10 +505,17 @@ def print_best_params(study):
 
 def save_best_params(study, study_name: str):
     with open(f"optuna/{study_name}-results.txt", "a") as f:
-        f.write(f"{study_name} Number of finished trials: {len(study.trials)}\n")
+        f.write(f"# {study_name} Number of finished trials: {len(study.trials)}\n")
 
         trials = sorted(study.best_trials, key=lambda t: t.values)
 
         for trial in trials:
             f.write(
-                f"Trial: {trial.number} Values: {trial.values} Params: {trial.params}\n")
+                f"#Trial: {trial.number} Values: {trial.values} Params: {trial.params}\n")
+        f.close()
+    with open(f"optuna/{study_name}-hp.txt", "w+") as f:
+        # trials = sorted(study.best_trials, key=lambda t: t.values)
+
+        for trial in trials:
+            f.write(f"{trial.params}\n")
+        f.close()
