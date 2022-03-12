@@ -229,6 +229,13 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
             f.write(params + "\n")
 
         f.close()
+    # with open(f"optuna/{study_name}-previou-pass-hps.txt", "w+") as f:
+    #     # f.write(f"# {study_name} Number of finished trials: {len(study.trials)}\n")
+    #     for i in range(1,cfg['n_trials']):
+    #         params = json.dumps(study.trials[-i - cfg['n_trials']].params).replace('000000000000004','').replace('000000000000001','').replace('000000000000002','').replace('00000000000001','')
+    #         f.write(params + "\n")
+
+    #     f.close()
 
 # @cli.command()
 # @click.argument('start_date', required=True, type=str)
@@ -517,5 +524,6 @@ def save_best_params(study, study_name: str):
         # trials = sorted(study.best_trials, key=lambda t: t.values)
 
         for trial in trials:
-            f.write(f"{trial.params}\n")
+            params = json.dumps(trial.params).replace('000000000000004','').replace('000000000000001','').replace('000000000000002','').replace('00000000000001','')
+            f.write(params + "\n")
         f.close()
