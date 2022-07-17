@@ -139,7 +139,10 @@ def run(config : str) -> None:
 @click.option(
     '--config', default='optuna_config.yml', show_default=True,
     help='Config file')
-def walkforward(start_date: str, finish_date: str, inc_month : int,training_month: int, test_month: int,config : str) -> None:
+@click.option('--dryrun/--no-dryrun', default=False,
+              help='Dry run')
+
+def walkforward(start_date: str, finish_date: str, inc_month : int,training_month: int, test_month: int,config : str, dryrun: bool) -> None:
     global config_filename, logger
 
     config_filename = config
@@ -162,30 +165,32 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
     print (f" Walkforward period: {start_date.format('YYYY-MM-DD')} - {finish_date.format('YYYY-MM-DD')}")
 
     passno = 1
-
-    try:
-        study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                            storage=storage, load_if_exists=False if passno == 1 else True)
-    except optuna.exceptions.DuplicatedStudyError:
-        if click.confirm('Previous study detected. Do you want to resume?', default=True):
+    if not dryrun:
+        try:
             study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                            storage=storage, load_if_exists=True)
-        elif click.confirm('Delete previous study and start new?', default=False):
-            optuna.delete_study(study_name=study_name, storage=storage)
-            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
-                                            storage=storage, load_if_exists=False)
-        else:
-            print("Exiting.")
-            exit(1)
-    study.set_user_attr("strategy_name", cfg['strategy_name'])
-    study.set_user_attr("exchange", cfg['exchange'])
-    study.set_user_attr("symbol", cfg['symbol'])
-    study.set_user_attr("timeframe", cfg['timeframe'])
+                                                storage=storage, load_if_exists=False if passno == 1 else True)
+        except optuna.exceptions.DuplicatedStudyError:
+            if click.confirm('Previous study detected. Do you want to resume?', default=True):
+                study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                                                storage=storage, load_if_exists=True)
+            elif click.confirm('Delete previous study and start new?', default=False):
+                optuna.delete_study(study_name=study_name, storage=storage)
+                study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                                                storage=storage, load_if_exists=False)
+            else:
+                print("Exiting.")
+                exit(1)
+        study.set_user_attr("strategy_name", cfg['strategy_name'])
+        study.set_user_attr("exchange", cfg['exchange'])
+        study.set_user_attr("symbol", cfg['symbol'])
+        study.set_user_attr("timeframe", cfg['timeframe'])
+        bypass_month = inc_month * math.floor(len(study.trials) / cfg['n_trials'])
+    else:
+        bypass_month = 0
 
     a_start_date = arrow.get(start_date, 'YYYY-MM-DD')
     a_finish_date = arrow.get(finish_date, 'YYYY-MM-DD')
 
-    bypass_month = inc_month * math.floor(len(study.trials) / cfg['n_trials'])
     i_start_date = a_start_date.shift(months=bypass_month) 
     i_outsample_date = i_start_date.shift(months=training_month)
     i_finish_date = i_start_date.shift(months = test_month)
@@ -199,21 +204,22 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
             if i_outsample_date > i_finish_date:
                 break
         
-        print (f"Walk {i_start_date.format('YYYY-MM-DD')} - {i_outsample_date.format('YYYY-MM-DD')}- {i_finish_date.format('YYYY-MM-DD')} ")
+        print (f"Step {passno}: Walk {i_start_date.format('YYYY-MM-DD')} - {i_outsample_date.format('YYYY-MM-DD')}- {i_finish_date.format('YYYY-MM-DD')} ")
+        
+        if not dryrun:
+            current_trials = len(study.trials)
 
-        current_trials = len(study.trials)
+            left_trials = max((cfg['n_trials'] * passno - current_trials), 1)
 
-        left_trials = max((cfg['n_trials'] * passno - current_trials), 1)
+            print(f"Optimizing {study_name} with {left_trials} / {cfg['n_trials']} trials...")
+            cfg['timespan-train']['start_date'] = i_start_date.format('YYYY-MM-DD')
+            cfg['timespan-train']['finish_date'] = i_outsample_date.format('YYYY-MM-DD')
+            cfg['timespan-testing']['start_date'] = i_outsample_date.format('YYYY-MM-DD')
+            cfg['timespan-testing']['finish_date'] = i_finish_date.format('YYYY-MM-DD')
+            study.optimize(objective, n_jobs=cfg['n_jobs'], n_trials=left_trials)
 
-        print(f"Optimizing {study_name} with {left_trials} / {cfg['n_trials']} trials...")
-        cfg['timespan-train']['start_date'] = i_start_date.format('YYYY-MM-DD')
-        cfg['timespan-train']['finish_date'] = i_outsample_date.format('YYYY-MM-DD')
-        cfg['timespan-testing']['start_date'] = i_outsample_date.format('YYYY-MM-DD')
-        cfg['timespan-testing']['finish_date'] = i_finish_date.format('YYYY-MM-DD')
-        study.optimize(objective, n_jobs=cfg['n_jobs'], n_trials=left_trials)
-
-        print_best_params(study)
-        save_best_params(study, study_name + f"-{passno}")
+            print_best_params(study)
+            save_best_params(study, study_name + f"-{passno}")
         # calculate next period
         i_start_date = i_start_date.shift(months = inc_month)
         i_outsample_date = i_start_date.shift(months = training_month)
@@ -222,20 +228,21 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
 
     # save_best_params(study, study_name + f"-{passno}")
     # Write all the params to file
-    with open(f"optuna/{study_name}-last-pass-hps.txt", "w+") as f:
-        # f.write(f"# {study_name} Number of finished trials: {len(study.trials)}\n")
-        for i in range(1,cfg['n_trials']):
-            params = json.dumps(study.trials[-i].params).replace('000000000000004','').replace('000000000000001','').replace('000000000000002','').replace('00000000000001','')
-            f.write(params + "\n")
+    if not dryrun:
+        with open(f"optuna/{study_name}-last-pass-hps.txt", "w+") as f:
+            # f.write(f"# {study_name} Number of finished trials: {len(study.trials)}\n")
+            for i in range(1,cfg['n_trials']):
+                params = json.dumps(study.trials[-i].params).replace('000000000000004','').replace('000000000000001','').replace('000000000000002','').replace('00000000000001','')
+                f.write(params + "\n")
 
-        f.close()
-    # with open(f"optuna/{study_name}-previou-pass-hps.txt", "w+") as f:
-    #     # f.write(f"# {study_name} Number of finished trials: {len(study.trials)}\n")
-    #     for i in range(1,cfg['n_trials']):
-    #         params = json.dumps(study.trials[-i - cfg['n_trials']].params).replace('000000000000004','').replace('000000000000001','').replace('000000000000002','').replace('00000000000001','')
-    #         f.write(params + "\n")
+            f.close()
+        # with open(f"optuna/{study_name}-previou-pass-hps.txt", "w+") as f:
+        #     # f.write(f"# {study_name} Number of finished trials: {len(study.trials)}\n")
+        #     for i in range(1,cfg['n_trials']):
+        #         params = json.dumps(study.trials[-i - cfg['n_trials']].params).replace('000000000000004','').replace('000000000000001','').replace('000000000000002','').replace('00000000000001','')
+        #         f.write(params + "\n")
 
-    #     f.close()
+        #     f.close()
 
 # @cli.command()
 # @click.argument('start_date', required=True, type=str)
@@ -353,8 +360,9 @@ def objective(trial):
     else:
         raise ValueError(
             f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino, serenity, smart shapre, smart sortino and omega.')
-    if ratio < 0:
-        return np.nan
+    training_ratio = ratio      
+    # if ratio < 0:
+    #     return np.nan
 
     score = total_effect_rate * ratio_normalized
     logger.info(f"Training data metrics: {training_data_metrics}")
@@ -397,6 +405,10 @@ def objective(trial):
     else:
         raise ValueError(
             f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino, serenity, smart shapre, smart sortino and omega.')
+    testing_ratio = ratio
+        
+    if testing_ratio < 0 and training_ratio < 0:
+        return np.nan
     # if ratio < 0:
     #     return np.nan
 
