@@ -498,22 +498,28 @@ def backtest_function(start_date, finish_date, hp, cfg):
     # logger.error(output)
     metrics = get_metrics3(output)    
 
-    backtest_data = json.loads(metrics['json_metrics'])
+    none_backtest_data = {'total': 0, 'total_winning_trades': None, 'total_losing_trades': None,
+                        'starting_balance': None, 'finishing_balance': None, 'win_rate': None,
+                        'ratio_avg_win_loss': None, 'longs_count': None, 'longs_percentage': None,
+                        'shorts_percentage': None, 'shorts_count': None, 'fee': None, 'net_profit': None,
+                        'net_profit_percentage': None, 'average_win': None, 'average_loss': None, 'expectancy': None,
+                        'expectancy_percentage': None, 'expected_net_profit_every_100_trades': None,
+                        'average_holding_period': None, 'average_winning_holding_period': None,
+                        'average_losing_holding_period': None, 'gross_profit': None, 'gross_loss': None,
+                        'max_drawdown': None, 'annual_return': None, 'sharpe_ratio': None, 'calmar_ratio': None,
+                        'sortino_ratio': None, 'omega_ratio': None, 'serenity_index': None, 'smart_sharpe': None,
+                        'smart_sortino': None, 'total_open_trades': None, 'open_pl': None, 'winning_streak': None,
+                        'losing_streak': None, 'largest_losing_trade': None, 'largest_winning_trade': None,
+                        'current_streak': None}
+    try:
+        backtest_data = json.loads(metrics['json_metrics'])
+    except ValueError as e:
+        return none_backtest_data
+
     # print (backtest_data)
     if backtest_data['total'] == 0:
-        backtest_data = {'total': 0, 'total_winning_trades': None, 'total_losing_trades': None,
-                         'starting_balance': None, 'finishing_balance': None, 'win_rate': None,
-                         'ratio_avg_win_loss': None, 'longs_count': None, 'longs_percentage': None,
-                         'shorts_percentage': None, 'shorts_count': None, 'fee': None, 'net_profit': None,
-                         'net_profit_percentage': None, 'average_win': None, 'average_loss': None, 'expectancy': None,
-                         'expectancy_percentage': None, 'expected_net_profit_every_100_trades': None,
-                         'average_holding_period': None, 'average_winning_holding_period': None,
-                         'average_losing_holding_period': None, 'gross_profit': None, 'gross_loss': None,
-                         'max_drawdown': None, 'annual_return': None, 'sharpe_ratio': None, 'calmar_ratio': None,
-                         'sortino_ratio': None, 'omega_ratio': None, 'serenity_index': None, 'smart_sharpe': None,
-                         'smart_sortino': None, 'total_open_trades': None, 'open_pl': None, 'winning_streak': None,
-                         'losing_streak': None, 'largest_losing_trade': None, 'largest_winning_trade': None,
-                         'current_streak': None}
+        return none_backtest_data
+
 
     return backtest_data
 
