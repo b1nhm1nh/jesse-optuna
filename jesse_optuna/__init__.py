@@ -150,8 +150,10 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
     cfg = get_config()
 
     optuna.logging.enable_propagation()
+    exchange_name = cfg['exchange']
+    short_exchange_name = ''.join([c for c in exchange_name if c.isupper()])
 
-    study_name = f"Walkforward-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}-{inc_month}-{training_month}-{test_month}"
+    study_name = f"WF-{cfg['strategy_name']}-{short_exchange_name}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}-{inc_month}-{training_month}-{test_month}"
     storage = f"postgresql://{cfg['postgres_username']}:{cfg['postgres_password']}@{cfg['postgres_host']}:{cfg['postgres_port']}/{cfg['postgres_db_name']}"
 
     make_route("route_tpl.py", "routes.py", cfg['exchange'], cfg['symbol'], cfg['timeframe'], cfg['strategy_name'])
@@ -234,7 +236,7 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
         with open(f"optuna/{study_name}-last-pass-hps.txt", "w+") as f:
             # f.write(f"# {study_name} Number of finished trials: {len(study.trials)}\n")
             for i in range(1,cfg['n_trials']):
-                params = json.dumps(study.trials[-i].params).replace('000000000000004','').replace('000000000000001','').replace('000000000000002','').replace('00000000000001','')
+                params = json.dumps(study.trials[-i].params).replace('000000000000004','').replace('000000000000003','').replace('000000000000002','').replace('00000000000001','')
                 f.write(params + "\n")
 
             f.close()
