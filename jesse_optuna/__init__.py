@@ -195,7 +195,9 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
     i_outsample_date = i_start_date.shift(months=training_month)
     i_finish_date = i_start_date.shift(months = test_month)
 
-    print(f" Bypassing {bypass_month} months.{i_start_date} {a_finish_date}")
+    if bypass_month > 0:
+        passno = 1 + math.floor(len(study.trials) / cfg['n_trials'])
+    print(f" Bypassing {bypass_month} months, pass: {passno}. Start date: {i_start_date} - {a_finish_date}")
 
  
     while  i_start_date <= a_finish_date:
