@@ -531,13 +531,13 @@ def backtest_function(start_date, finish_date, hp, cfg):
 
     # Return last backtest data
     if seq in hash_dict:
-        return json.load(hash_dict[seq])
-    else:
-        hash_dict[seq] = json.dumps(none_backtest_data)
+        print (f"seq {seq} exist ", hash_dict[seq])
+        return hash_dict[seq]
+   
 
-    print(f"Seq: {seq}")
-    print (hps)
-    exit()
+    # print(f"Seq: {seq}")
+    # print (hps)
+    # exit()
     process = Popen(['jesse-tk', 'backtest', start_date,
                     finish_date, '--hp', hps], stdout=PIPE)
     (output, err) = process.communicate()
@@ -558,7 +558,7 @@ def backtest_function(start_date, finish_date, hp, cfg):
         backtest_data = none_backtest_data 
         # return none_backtest_data
 
-    hash_dict[seq] = backtest_data
+    hash_dict[seq] = backtest_data # json.dumps(backtest_data)
     return backtest_data
 
 def print_best_params(study):
