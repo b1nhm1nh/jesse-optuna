@@ -13,6 +13,10 @@ import pkg_resources
 import yaml
 import arrow
 import math
+import zlib
+import pickle
+import redis
+
 # from jesse.research import backtest, get_candles
 from .JoblilbStudy import JoblibStudy
 
@@ -22,13 +26,29 @@ from subprocess import PIPE, Popen, call
 from jessetk.utils import make_route, get_metrics3
 logger = logging.getLogger()
 study_name = ""
+hash_dict = {}
+
+config_data = {}
+
+def redis_load(key):
+    global config_data
+    r = redis.Redis(host=config_data["redis_host"], port=config_data["redis_port"], db=config_data["redis_db"])
+    value = r.get(key)
+    if value:
+        return pickle.loads(value)
+    else:
+        return None
+
+def redis_save(key, value):
+    global config_data
+    r = redis.Redis(host=config_data["redis_host"], port=config_data["redis_port"], db=config_data["redis_db"])
+    r.set(key, pickle.dumps(value))
 
 # create a Click group
 @click.group()
 @click.version_option(pkg_resources.get_distribution("jesse-optuna").version)
 def cli() -> None:
     pass
-
 
 @cli.command()
 def create_config() -> None:
@@ -143,7 +163,7 @@ def run(config : str) -> None:
               help='Dry run')
 
 def walkforward(start_date: str, finish_date: str, inc_month : int,training_month: int, test_month: int,config : str, dryrun: bool) -> None:
-    global config_filename, logger
+    global config_filename, logger, hash_dict
 
     config_filename = config
     validate_cwd()
@@ -205,11 +225,17 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
     while  i_start_date <= a_finish_date:
         if i_finish_date > a_finish_date:
             i_finish_date = a_finish_date
-            if i_outsample_date > i_finish_date:
-                break
+
+        if i_outsample_date > i_finish_date or i_outsample_date == i_finish_date:
+            break
         
         print (f"Step {passno}: Walk {i_start_date.format('YYYY-MM-DD')} - {i_outsample_date.format('YYYY-MM-DD')}- {i_finish_date.format('YYYY-MM-DD')} ")
-        
+        # clear backtest cached
+        hash_dict.clear()
+        print("Loading candle")
+        warmup_candles_with_cache(cfg['exchange'], cfg['symbol'],i_start_date.format('YYYY-MM-DD'), i_outsample_date.format('YYYY-MM-DD'))
+        warmup_candles_with_cache(cfg['exchange'], cfg['symbol'],i_outsample_date.format('YYYY-MM-DD'), i_finish_date.format('YYYY-MM-DD'))
+        print("Running Backtest")
         if not dryrun:
             current_trials = len(study.trials)
 
@@ -247,6 +273,11 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
         #         f.write(params + "\n")
 
         #     f.close()
+#-------------------------------------------------------------
+#   Walk Forward 2
+#-------------------------------------------------------------
+
+
 
 # @cli.command()
 # @click.argument('start_date', required=True, type=str)
@@ -282,10 +313,14 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
 #     optuna.copy_study(from_study_name, from_storage, to_storage, to_study_name=None)
 
 def get_config():
-    global config_filename
+    global config_filename, config_data
 
     cfg_file = pathlib.Path(config_filename)
 
+    # return loaded config
+    if len(config_data):
+        return config_data
+        
     if not cfg_file.is_file():
         print(f"{config_filename} not found. Run create-config command.")
         exit()
@@ -294,6 +329,7 @@ def get_config():
             cfg = yaml.load(ymlfile, yaml.SafeLoader)
 
     return cfg
+
 
 
 def objective(trial):
@@ -312,7 +348,9 @@ def objective(trial):
             if 'step' not in st_hp:
                 st_hp['step'] = 0.1
             trial.suggest_float(st_hp['name'], st_hp['min'], st_hp['max'], step=st_hp['step'])
-            trial.params[st_hp['name']] = round(trial.params[st_hp['name']], len(str(st_hp['step'] - 2)))
+            trial.params[st_hp['name']] = "{:.2f}".format(trial.params[st_hp['name']])
+            #round(trial.params[st_hp['name']], len(str(st_hp['step'] - 2)))
+            # print(f" Params: {trial.params[st_hp['name']]}")
         elif st_hp['type'] is bool:
             trial.suggest_categorical(st_hp['name'], [True, False])
         else:
@@ -451,52 +489,28 @@ def validate_cwd() -> None:
     os.makedirs(f'./optuna', exist_ok=True)
 
 
-def get_candles_with_cache(exchange: str, symbol: str, start_date: str, finish_date: str) -> np.ndarray:
-    path = pathlib.Path('storage/jesse-optuna')
-    path.mkdir(parents=True, exist_ok=True)
-
-    cache_file_name = f"{exchange}-{symbol}-1m-{start_date}-{finish_date}.pickle"
-    cache_file = pathlib.Path(f'storage/jesse-optuna/{cache_file_name}')
-
-    if cache_file.is_file():
-        with open(f'storage/jesse-optuna/{cache_file_name}', 'rb') as handle:
-            candles = pickle.load(handle)
-    else:
-        candles = get_candles(exchange, symbol, '1m', start_date, finish_date)
-        with open(f'storage/jesse-optuna/{cache_file_name}', 'wb') as handle:
-            pickle.dump(candles, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    return candles
-
-def warmup_candles_with_cache(exchange: str, symbol: str, start_date: str, finish_date: str) -> np.ndarray:
-    load_required_candles(exchange, symbol,  start_date, finish_date)
-    path = pathlib.Path('storage/jesse-optuna')
-    path.mkdir(parents=True, exist_ok=True)
-
-    cache_file_name = f"{exchange}-{symbol}-1m-{start_date}-{finish_date}.pickle"
-    cache_file = pathlib.Path(f'storage/jesse-optuna/{cache_file_name}')
-
-    if cache_file.is_file():
-        with open(f'storage/jesse-optuna/{cache_file_name}', 'rb') as handle:
-            candles = pickle.load(handle)
-    else:
-        candles = get_candles(exchange, symbol, '1m', start_date, finish_date)
-        with open(f'storage/jesse-optuna/{cache_file_name}', 'wb') as handle:
-            pickle.dump(candles, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    return candles
-
-def backtest_function(start_date, finish_date, hp, cfg):
-
-    hps = json.dumps(hp)
-    # print (hps)
+def warmup_candles_with_cache(exchange: str, symbol: str, start_date: str, finish_date: str) -> None:
     process = Popen(['jesse-tk', 'backtest', start_date,
-                    finish_date, '--hp', hps], stdout=PIPE)
+                    finish_date, '--dryrun'], stdout=PIPE)
     (output, err) = process.communicate()
     exit_code = process.wait()
-    output = output.decode('utf-8')
-    # logger.error(output)
-    metrics = get_metrics3(output)    
+    # print(output)
+
+    return 
+
+def hp_to_seq(hp):
+    longest_param = 0
+
+    # for v in hp.values():
+    #     if len(str(v)) > longest_param:
+    #         longest_param = len(str(v))
+    #         print(f"Longest {v}")
+    
+    hash = ''.join([f'_{value:0>}' for key, value in hp.items()])
+    return hex(zlib.crc32(bytearray(hash,"ascii")) & 0xffffffff)
+
+def backtest_function(start_date, finish_date, hp, cfg):
+    global hash_dict
 
     none_backtest_data = {'total': 0, 'total_winning_trades': None, 'total_losing_trades': None,
                         'starting_balance': None, 'finishing_balance': None, 'win_rate': None,
@@ -511,16 +525,40 @@ def backtest_function(start_date, finish_date, hp, cfg):
                         'smart_sortino': None, 'total_open_trades': None, 'open_pl': None, 'winning_streak': None,
                         'losing_streak': None, 'largest_losing_trade': None, 'largest_winning_trade': None,
                         'current_streak': None}
+    
+    hps = json.dumps(hp)
+    seq = hp_to_seq(hp)
+
+    # Return last backtest data
+    if seq in hash_dict:
+        return json.load(hash_dict[seq])
+    else:
+        hash_dict[seq] = json.dumps(none_backtest_data)
+
+    print(f"Seq: {seq}")
+    print (hps)
+    exit()
+    process = Popen(['jesse-tk', 'backtest', start_date,
+                    finish_date, '--hp', hps], stdout=PIPE)
+    (output, err) = process.communicate()
+    exit_code = process.wait()
+    output = output.decode('utf-8')
+    # logger.error(output)
+    metrics = get_metrics3(output)    
+
+
     try:
         backtest_data = json.loads(metrics['json_metrics'])
     except ValueError as e:
-        return none_backtest_data
+        backtest_data = none_backtest_data
+        # return none_backtest_data
 
     # print (backtest_data)
     if backtest_data['total'] == 0:
-        return none_backtest_data
+        backtest_data = none_backtest_data 
+        # return none_backtest_data
 
-
+    hash_dict[seq] = backtest_data
     return backtest_data
 
 def print_best_params(study):
