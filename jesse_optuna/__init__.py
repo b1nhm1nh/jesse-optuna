@@ -531,7 +531,7 @@ def backtest_function(start_date, finish_date, hp, cfg):
 
     # Return last backtest data
     if seq in hash_dict:
-        # print (f"seq {seq} exist ", hash_dict[seq])
+        print (f"=============== Duplicate hp ==============")
         return hash_dict[seq]
    
 
