@@ -108,30 +108,30 @@ def run(config : str) -> None:
 
     # JOBlibStudy for Jesse GUI
     # try:
-    #     study = JoblibStudy(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+    #     study = JoblibStudy(study_name=study_name, directions=["maximize"], sampler=sampler,
     #                                 storage=storage, load_if_exists=False)
     # except optuna.exceptions.DuplicatedStudyError:
     #     if click.confirm('Previous study detected. Do you want to resume?', default=True):
-    #         study = JoblibStudy(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+    #         study = JoblibStudy(study_name=study_name, directions=["maximize"], sampler=sampler,
     #                                     storage=storage, load_if_exists=True)
     #     elif click.confirm('Delete previous study and start new?', default=False):
     #         optuna.delete_study(study_name=study_name, storage=storage)
-    #         study = JoblibStudy(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+    #         study = JoblibStudy(study_name=study_name, directions=["maximize"], sampler=sampler,
     #                                     storage=storage, load_if_exists=False)
     #     else:
     #         print("Exiting.")
     #         exit(1)
     # Using Jesse-tk directly
     try:
-        study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+        study = optuna.create_study(study_name=study_name, directions=["maximize"], sampler=sampler,
                                             storage=storage, load_if_exists=False)
     except optuna.exceptions.DuplicatedStudyError:
         if click.confirm('Previous study detected. Do you want to resume?', default=True):
-            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+            study = optuna.create_study(study_name=study_name, directions=["maximize"], sampler=sampler,
                                             storage=storage, load_if_exists=True)
         elif click.confirm('Delete previous study and start new?', default=False):
             optuna.delete_study(study_name=study_name, storage=storage)
-            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+            study = optuna.create_study(study_name=study_name, directions=["maximize"], sampler=sampler,
                                             storage=storage, load_if_exists=False)
         else:
             print("Exiting.")
@@ -189,15 +189,15 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
     passno = 1
     if not dryrun:
         try:
-            study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+            study = optuna.create_study(study_name=study_name, directions=["maximize"], sampler=sampler,
                                                 storage=storage, load_if_exists=False if passno == 1 else True)
         except optuna.exceptions.DuplicatedStudyError:
             if click.confirm('Previous study detected. Do you want to resume?', default=True):
-                study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                study = optuna.create_study(study_name=study_name, directions=["maximize"], sampler=sampler,
                                                 storage=storage, load_if_exists=True)
             elif click.confirm('Delete previous study and start new?', default=False):
                 optuna.delete_study(study_name=study_name, storage=storage)
-                study = optuna.create_study(study_name=study_name, directions=["maximize", "maximize"], sampler=sampler,
+                study = optuna.create_study(study_name=study_name, directions=["maximize"], sampler=sampler,
                                                 storage=storage, load_if_exists=False)
             else:
                 print("Exiting.")
@@ -370,7 +370,7 @@ def objective(trial):
             f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino, serenity, smart shapre, smart sortino and omega.')
     training_ratio = ratio      
     if ratio < 0:
-        return np.nan, np.nan
+        return np.nan
 
     score = total_effect_rate * ratio_normalized
     logger.info(f"Training data metrics: {training_data_metrics}")
@@ -384,7 +384,7 @@ def objective(trial):
     logger.info(f"Testing data metrics: {testing_data_metrics}")
 
     if testing_data_metrics is None:
-        return np.nan, np.nan
+        return np.nan
 
     total_effect_rate = np.log10(testing_data_metrics['total']) / np.log10(cfg['optimal-total'])
     total_effect_rate = min(total_effect_rate, 1)
@@ -416,13 +416,13 @@ def objective(trial):
     testing_ratio = ratio
         
     # if testing_ratio < 0 and training_ratio < 0:
-    #     return np.nan, np.nan
+    #     return np.nan
 
 
     testing_score = total_effect_rate * ratio_normalized
 
     if testing_score < 0 and score <= 0.35:
-        return np.nan, np.nan
+        return np.nan
 
     for key, value in testing_data_metrics.items():
         if isinstance(value, np.integer):
@@ -442,7 +442,7 @@ def objective(trial):
             value = value.tolist()
         trial.set_user_attr(f"training-{key}", value)
     # print(f" {score}   --  {testing_score}")
-    return round(score,2), round(testing_score,2)
+    return round(score,2)
 
 def validate_cwd() -> None:
     """
