@@ -232,7 +232,7 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
         print (f"Step {passno}: Walk {i_start_date.format('YYYY-MM-DD')} - {i_outsample_date.format('YYYY-MM-DD')}- {i_finish_date.format('YYYY-MM-DD')} ")
         # clear backtest cached
         hash_dict.clear()
-        print("Loading candle")
+        print("Loading candle data...")
         warmup_candles_with_cache(cfg['exchange'], cfg['symbol'],i_start_date.format('YYYY-MM-DD'), i_outsample_date.format('YYYY-MM-DD'))
         warmup_candles_with_cache(cfg['exchange'], cfg['symbol'],i_outsample_date.format('YYYY-MM-DD'), i_finish_date.format('YYYY-MM-DD'))
         print("Running Backtest")
@@ -242,6 +242,8 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
             left_trials = max((cfg['n_trials'] * passno - current_trials), 1)
 
             print(f"Optimizing {study_name} with {left_trials} / {cfg['n_trials']} trials...")
+            cfg['timespan-train'] = {}
+            cfg['timespan-testing'] = {}
             cfg['timespan-train']['start_date'] = i_start_date.format('YYYY-MM-DD')
             cfg['timespan-train']['finish_date'] = i_outsample_date.format('YYYY-MM-DD')
             cfg['timespan-testing']['start_date'] = i_outsample_date.format('YYYY-MM-DD')
@@ -273,44 +275,7 @@ def walkforward(start_date: str, finish_date: str, inc_month : int,training_mont
         #         f.write(params + "\n")
 
         #     f.close()
-#-------------------------------------------------------------
-#   Walk Forward 2
-#-------------------------------------------------------------
 
-
-
-# @cli.command()
-# @click.argument('start_date', required=True, type=str)
-# @click.argument('finish_date', required=True, type=str)
-# @click.argument('inc_month', required=True, type=int)
-# @click.argument('training_month', required=True, type=int)
-# @click.argument('test_month', required=True, type=int)
-# @click.option(
-#     '--config', default='optuna_config.yml', show_default=True,
-#     help='Config file')
-# def walkforward_refine(start_date: str, finish_date: str, inc_month : int,training_month: int, test_month: int,config : str) -> None:
-#     global config_filename, logger
-
-#     config_filename = config
-#     validate_cwd()
-#     cfg = get_config()
-
-#     optuna.logging.enable_propagation()
-
-#     study_name = f"Walkforward-{cfg['strategy_name']}-{cfg['exchange']}-{cfg['symbol']}-{cfg['timeframe']}-{cfg['revision']}-{inc_month}-{training_month}-{test_month}"
-#     storage = f"postgresql://{cfg['postgres_username']}:{cfg['postgres_password']}@{cfg['postgres_host']}:{cfg['postgres_port']}/{cfg['postgres_db_name']}"
-
-#     make_route("route_tpl.py", "routes.py", cfg['exchange'], cfg['symbol'], cfg['timeframe'], cfg['strategy_name'])
-
-#     sampler = optuna.samplers.NSGAIISampler(population_size=cfg['population_size'], mutation_prob=cfg['mutation_prob'],
-#                                             crossover_prob=cfg['crossover_prob'], swapping_prob=cfg['swapping_prob'])
-    
-#     logger.addHandler(logging.FileHandler(f"optuna/{study_name}.log", mode="w"))
-#     optuna.logging.enable_propagation()
-
-#     print (f" Walkforward period: {start_date.format('YYYY-MM-DD')} - {finish_date.format('YYYY-MM-DD')}")
-
-#     optuna.copy_study(from_study_name, from_storage, to_storage, to_study_name=None)
 
 def get_config():
     global config_filename, config_data
@@ -327,6 +292,7 @@ def get_config():
     else:
         with open(config_filename, "r") as ymlfile:
             cfg = yaml.load(ymlfile, yaml.SafeLoader)
+            config_data = cfg
 
     return cfg
 
@@ -412,6 +378,7 @@ def objective(trial):
     # print(f"Training data metrics: {training_data_metrics}")
     try:
         testing_data_metrics = backtest_function(cfg['timespan-testing']['start_date'], cfg['timespan-testing']['finish_date'], trial.params, cfg)
+        # training_data_metrics = backtest_function(cfg['timespan-train']['start_date'], cfg['timespan-train']['finish_date'], trial.params, cfg)
     except Exception as err:
         logger.error("".join(traceback.TracebackException.from_exception(err).format()))
         raise err
@@ -473,8 +440,8 @@ def objective(trial):
         elif isinstance(value, np.ndarray):
             value = value.tolist()
         trial.set_user_attr(f"training-{key}", value)
-    # print(score)
-    return score, testing_score
+    # print(f" {score}   --  {testing_score}")
+    return round(score,2), round(testing_score,2)
 
 def validate_cwd() -> None:
     """
@@ -512,6 +479,8 @@ def hp_to_seq(hp):
 def backtest_function(start_date, finish_date, hp, cfg):
     global hash_dict
 
+    # print(f"Backtesting with {start_date} - {finish_date} and hp {hp}")
+
     none_backtest_data = {'total': 0, 'total_winning_trades': None, 'total_losing_trades': None,
                         'starting_balance': None, 'finishing_balance': None, 'win_rate': None,
                         'ratio_avg_win_loss': None, 'longs_count': None, 'longs_percentage': None,
@@ -527,9 +496,8 @@ def backtest_function(start_date, finish_date, hp, cfg):
                         'current_streak': None}
     
     hps = json.dumps(hp)
-    seq = hp_to_seq(hp)
+    seq = str(hp_to_seq(hp))+ start_date
 
-    # Return last backtest data
     if seq in hash_dict:
         print (f"=============== Duplicate hp ==============")
         return hash_dict[seq]
@@ -544,6 +512,7 @@ def backtest_function(start_date, finish_date, hp, cfg):
     exit_code = process.wait()
     output = output.decode('utf-8')
     # logger.error(output)
+    # print(output)
     metrics = get_metrics3(output)    
 
 
