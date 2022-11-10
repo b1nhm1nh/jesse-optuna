@@ -369,8 +369,8 @@ def objective(trial):
         raise ValueError(
             f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino, serenity, smart shapre, smart sortino and omega.')
     training_ratio = ratio      
-    # if ratio < 0:
-    #     return np.nan
+    if ratio < 0:
+        return np.nan, np.nan
 
     score = total_effect_rate * ratio_normalized
     logger.info(f"Training data metrics: {training_data_metrics}")
@@ -385,7 +385,7 @@ def objective(trial):
     logger.info(f"Testing data metrics: {testing_data_metrics}")
 
     if testing_data_metrics is None:
-        return np.nan
+        return np.nan, np.nan
 
     total_effect_rate = np.log10(testing_data_metrics['total']) / np.log10(cfg['optimal-total'])
     total_effect_rate = min(total_effect_rate, 1)
@@ -416,10 +416,10 @@ def objective(trial):
             f'The entered ratio configuration `{ratio_config}` for the optimization is unknown. Choose between sharpe, calmar, sortino, serenity, smart shapre, smart sortino and omega.')
     testing_ratio = ratio
         
-    if testing_ratio < 0 and training_ratio < 0:
-        return np.nan
-    # if ratio < 0:
-    #     return np.nan
+    # if testing_ratio < 0 and training_ratio < 0:
+    #     return np.nan, np.nan
+    if ratio < 0:
+        return np.nan, np.nan
 
     testing_score = total_effect_rate * ratio_normalized
 
