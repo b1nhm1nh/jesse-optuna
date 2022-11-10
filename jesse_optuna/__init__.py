@@ -374,7 +374,6 @@ def objective(trial):
 
     score = total_effect_rate * ratio_normalized
     logger.info(f"Training data metrics: {training_data_metrics}")
-
     # print(f"Training data metrics: {training_data_metrics}")
     try:
         testing_data_metrics = backtest_function(cfg['timespan-testing']['start_date'], cfg['timespan-testing']['finish_date'], trial.params, cfg)
@@ -418,10 +417,12 @@ def objective(trial):
         
     # if testing_ratio < 0 and training_ratio < 0:
     #     return np.nan, np.nan
-    if ratio < 0:
-        return np.nan, np.nan
+
 
     testing_score = total_effect_rate * ratio_normalized
+
+    if testing_score < 0 and score <= 0.35:
+        return np.nan, np.nan
 
     for key, value in testing_data_metrics.items():
         if isinstance(value, np.integer):
